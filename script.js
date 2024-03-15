@@ -21,7 +21,7 @@ var timelineRef = gsap.timeline();
         opacity: 0,
         scale: 1,
         duration: 2,
-        // repeat: -1,
-        // yoyo: true
+        repeat: -1,
+        yoyo: true
     })
 
