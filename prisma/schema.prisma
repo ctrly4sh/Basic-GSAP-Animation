@@ -6,3 +6,13 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model metaData {
+  id        String   @unique @default(uuid())
+  title     String
+  format    String
+  size      Int
+  name      String
+  createdAt DateTime @default(now()) 
+}
+
