@@ -12,7 +12,7 @@ model metaData {
   title     String
   format    String
   size      Int
-  name      String
+  fileUrl   String
   createdAt DateTime @default(now()) 
 }
 
