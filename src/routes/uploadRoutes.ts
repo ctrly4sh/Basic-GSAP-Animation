@@ -23,7 +23,7 @@ const multerMiddlewareConfig = multer.diskStorage({
     },
     
     filename: (req, res, callback) => {
-        const fileName = `${moment().format("dd:mm:yy")} ${randomUUID()}`;
+        const fileName = req.file?.originalname as string
         console.log("Filename: ", fileName)
         callback(null, fileName)
     }
@@ -33,4 +33,5 @@ const multerMiddlewareConfig = multer.diskStorage({
 const multerMiddleware = multer({storage: multerMiddlewareConfig})
 
 router.post('/upload', multerMiddleware.single("video"), uploadController.postVideo)
+
 export default router;
