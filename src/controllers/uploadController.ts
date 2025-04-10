@@ -1,10 +1,9 @@
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import ffmpeg from 'fluent-ffmpeg';
 import { Request, Response } from 'express';
-import mkdirp from "mkdirp";
-
+import { PrismaClient } from '@prisma/client';
+import AWS, { S3Control } from "aws-sdk"
+import { config } from 'dotenv'; config();
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import fs from "fs";
 
 export const health = (req: Request, res: Response) => {
   res.status(200).send({success: true, message: "Server health okay"})
@@ -13,76 +12,57 @@ export const health = (req: Request, res: Response) => {
 
 export const postVideo = async(req: Request, res: Response): Promise<void> => {
 
+  
+  const prisma = new PrismaClient();
+
+  const s3client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY!,
+    secretAccessKey: process.env.AWS_SECRET_KEY!
+  }
+});
+
+
   try {
 
     const video = req.file;
-    const name = req.body.name;
+    const videoTitle = req.body.title;
 
     const videoMetaData = {
-      name: `${video?.originalname} ${name}`,
+      name: `${video?.originalname}`,
       path: video?.path,
-      type: video?.mimetype
+      type: video?.mimetype,
+      size: video?.size
     };   
 
-    const videoId = uuidv4();
-    const baseOutputDir = path.join(__dirname, "..", "uploads", videoId);
-    mkdirp.sync(baseOutputDir);
-
-    const inputPath = video?.path;
-
-    const resolutions = {
-      '144p': { width: 256, height: 144, bitrate: '300k' },
-      '240p': { width: 426, height: 240, bitrate: '500k' },
-      '360p': { width: 640, height: 360, bitrate: '1000k' },
-      '480p': { width: 854, height: 480, bitrate: '2000k' },
-      '720p': { width: 1280, height: 720, bitrate: '4000k' },
-      '1080p': { width: 1920, height: 1080, bitrate: '8000k' },
+    const s3Config = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: `videos/${Date.now()}-${video?.originalname}`,
+       Body: fs.createReadStream(video?.path as string ),
+      ContentType: "video/mp4",
     };
+    
 
-    const conversionProcess = Object.entries(resolutions).map(([label, config]) => {
-      const resolutionDir = path.join(baseOutputDir, `${label}.mp4`);
-      mkdirp.sync(resolutionDir);
+    const s3Response = await s3client.send(new PutObjectCommand(s3Config))
+    const fileS3Url = `https://${s3Config.Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Config.Key}`;
 
-      return new Promise<void>((resolve, reject) => {
-        ffmpeg(inputPath)
-          .videoCodec('libx264')
-          .size(`${config.width}x${config.height}`)
-          .videoBitrate(config.bitrate)
-          .format('hls')
-          .outputOptions([
-            "-preset veryfast",
-            "-g 48",
-            "-sc_threshold 0",
-            "-c:a aac",
-            "-ar 48000",
-            "-b:a 128k",
-            "-hls_time 5",
-            "-hls_playlist_type vod",
-            `-hls_segment_filename ${path.join(resolutionDir, "segment%d.ts")}`
-          ])
-          .output(path.join(resolutionDir, "index.m3u8"))
-          .on('end', () => {
-            console.log(`✅ ${label} conversion done`);
-            resolve();
-          })
-          .on('error', (err) => {
-            console.error(`❌ Error converting to ${label}:`, err.message);
-            reject(err);
-          })
-          .run();
-      });
+    const metaData = await prisma.metaData.create({
+      data: {
+        fileUrl: fileS3Url,
+        format: "mp4",
+        size: videoMetaData.size as number,
+        title: videoTitle
+      }
     });
-
+  
     res.status(200).send({
       success: true, 
-      data: videoMetaData,
-      message: "Videos uploaded and HLS stream generated",
-      videoId: videoId,
-      resolutions: Object.keys(resolutions)
+      data: metaData,
     })
  
   }catch(error: any) {
-    console.log("Error uploading file ", error)
+    console.error("Error uploading " , error.stack)
   }
 
 };
