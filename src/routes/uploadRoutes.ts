@@ -6,13 +6,12 @@ import path from "path";
 import moment from "moment";
 import { randomUUID } from "crypto";
 
-const router = express.Router();
+const uploadRouter = express.Router();
 
-router.get('/health', uploadController.health);
+uploadRouter.get('/health', uploadController.health);
 
-// Multer middleware for handling file upload
-const uploadDirectory = path.join(__dirname, 'uploads');
-console.log(`Dirname -- ${__dirname}`);
+const uploadDirectory = path.join(process.cwd(), 'uploads');
+console.log(`Uploaded Directory : ${uploadDirectory}`);
 
 if (!fs.existsSync(uploadDirectory)) fs.mkdirSync(uploadDirectory);
 
@@ -35,6 +34,6 @@ const multerMiddlewareConfig = multer.diskStorage({
 
 const multerMiddleware = multer({ storage: multerMiddlewareConfig });
 
-router.post('/upload', multerMiddleware.single("video"), uploadController.postVideo)
+uploadRouter.post('/upload', multerMiddleware.single("video"), uploadController.postVideo)
 
-export default router;
+export default uploadRouter;
