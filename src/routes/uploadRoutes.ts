@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 
 const uploadRouter = express.Router();
 
-uploadRouter.get('/health', uploadController.health);
+// uploadRouter.get('/health', uploadController.health);
 
 const uploadDirectory = path.join(process.cwd(), 'uploads');
 console.log(`Uploaded Directory : ${uploadDirectory}`);
